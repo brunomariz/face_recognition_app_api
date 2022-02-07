@@ -41,7 +41,7 @@ app.use(express.json());
 
 // Root route
 app.get("/", (req, res) => {
-  res.send("Its alive!!");
+  res.json(database);
 });
 
 // Signing in
@@ -58,7 +58,46 @@ app.post("/signin", (req, res) => {
 });
 
 // Registering
-app.post("/register", (req, res) => {});
+app.post("/register", (req, res) => {
+  // Add id and entries to new user
+  const newUser = {
+    ...req.body,
+    id: 125,
+    entries: 0,
+    joined: new Date(),
+  };
+  // Add new user to database
+  database.users.push(newUser);
+  // Respond with new user
+  res.json(database.users[database.users.length - 1]);
+});
+
+// Profile
+app.get("/profile/:user_id", (req, res) => {
+  const { user_id } = req.params;
+  // Find user by id and respond with user
+  const user = database.users.filter((user) => {
+    return user.id == user_id;
+  });
+  if (user.length > 0) {
+    res.json(user);
+  } else {
+    res.status(404).json("User not found.");
+  }
+});
+
+// Image
+app.put("/image", (req, res) => {
+  const { id } = req.body;
+  // Find user by id and increment their entry count
+  database.users.forEach((user) => {
+    if (user.id == id) {
+      user.entries += 1;
+      res.json(user.entries);
+      return;
+    }
+  });
+});
 
 // Define server port
 app.listen(3000, () => {
