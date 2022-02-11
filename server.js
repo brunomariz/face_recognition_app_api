@@ -14,30 +14,38 @@ const database = {
     {
       id: 123,
       name: "Cameron",
-      email: "cam@gmail.com",
       password: "winsconsin",
+      email: "cam@gmail.com",
       entries: 0,
       joined: new Date(),
     },
     {
       id: 124,
       name: "Alex",
-      email: "alex@gmail.com",
       password: "science",
+      email: "alex@gmail.com",
       entries: 0,
       joined: new Date(),
     },
   ],
+  login: {
+    id: "987",
+    hash: "",
+    email: "john@gmail",
+  },
 };
 
 // Import express
 const express = require("express");
+const bcrypt = require("bcrypt-nodejs");
+const cors = require("cors");
 
 // Instantiate app
 const app = express();
 
 // Parse json body
 app.use(express.json());
+app.use(cors());
 
 // Root route
 app.get("/", (req, res) => {
@@ -46,12 +54,22 @@ app.get("/", (req, res) => {
 
 // Signing in
 app.post("/signin", (req, res) => {
+  const { email, password } = req.body;
+  // Load hash from your password DB.
+  // bcrypt.compare(
+  //   password,
+  //   "$2a$10$qjtBD2hcLjvo3X5rEUrMnOqeWtM4zUKe4sik4GGoNFbAew2k9X6Ma",
+  //   function (err, res) {
+  //     console.log(password, res);
+  //   }
+  // );
+
   // Check if valid user
   if (
-    req.body.email == database.users[1].email &&
-    req.body.password == database.users[1].password
+    email == database.users[1].email &&
+    password == database.users[1].password
   ) {
-    res.json("Signed in!");
+    res.json(database.users[1]);
   } else {
     res.status(400).json("Incorrect username or password");
   }
@@ -59,9 +77,11 @@ app.post("/signin", (req, res) => {
 
 // Registering
 app.post("/register", (req, res) => {
+  const { email, name, password } = req.body;
   // Add id and entries to new user
   const newUser = {
-    ...req.body,
+    name,
+    email,
     id: 125,
     entries: 0,
     joined: new Date(),
@@ -99,7 +119,11 @@ app.put("/image", (req, res) => {
   });
 });
 
+// bcrypt.compare("veggies", hash, function (err, res) {
+//   // res = false
+// });
+
 // Define server port
-app.listen(3000, () => {
-  console.log("Server is running on port 3000.");
+app.listen(3002, () => {
+  console.log("Server is running on port 3002.");
 });
