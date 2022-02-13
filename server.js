@@ -8,37 +8,11 @@ Project outline - first ideas:
 /image -> PUT = user
 */
 
-// Create database
-const database = {
-  users: [
-    {
-      id: 123,
-      name: "Cameron",
-      password: "winsconsin",
-      email: "cam@gmail.com",
-      entries: 0,
-      joined: new Date(),
-    },
-    {
-      id: 124,
-      name: "Alex",
-      password: "science",
-      email: "alex@gmail.com",
-      entries: 0,
-      joined: new Date(),
-    },
-  ],
-  login: {
-    id: "987",
-    hash: "",
-    email: "john@gmail",
-  },
-};
-
 // Import express
 const express = require("express");
 const bcrypt = require("bcrypt-nodejs");
 const cors = require("cors");
+const { bindComplete } = require("pg-protocol/dist/messages");
 const db = require("knex")({
   client: "pg",
   connection: {
@@ -59,44 +33,63 @@ app.use(cors());
 
 // Root route
 app.get("/", (req, res) => {
-  res.json(database);
+  db.select("*")
+    .from("users")
+    .then((users) => {
+      res.json(users);
+    })
+    .catch((err) => res.status(err).json("Error getting users."));
 });
 
 // Signing in
 app.post("/signin", (req, res) => {
-  const { email, password } = req.body;
-  // Load hash from your password DB.
-  // bcrypt.compare(
-  //   password,
-  //   "$2a$10$qjtBD2hcLjvo3X5rEUrMnOqeWtM4zUKe4sik4GGoNFbAew2k9X6Ma",
-  //   function (err, res) {
-  //     console.log(password, res);
-  //   }
-  // );
-
-  // Check if valid user
-  if (
-    email == database.users[1].email &&
-    password == database.users[1].password
-  ) {
-    res.json(database.users[1]);
-  } else {
-    res.status(400).json("Incorrect username or password");
-  }
+  db("users")
+    .select("email", "hash")
+    .from("login")
+    .where("email", "=", req.body.email)
+    .then((data) => {
+      const is_valid = bcrypt.compareSync(req.body.password, data[0].hash);
+      if (is_valid) {
+        return db
+          .select("*")
+          .from("users")
+          .where("email", "=", req.body.email)
+          .then((user) => {
+            res.json(user[0]);
+          })
+          .catch((err) => res.status(400).json("Error signing in."));
+      } else {
+        res.status(400).json("Wrong credentials.");
+      }
+    })
+    .catch((err) => res.status(400).json("Wrong credentials."));
 });
 
 // Registering
 app.post("/register", (req, res) => {
   const { email, name, password } = req.body;
-  // Add new user to database
-  db("users")
-    .insert({ email, name, joined: new Date() })
-    .returning("*")
-    .then((user) => {
-      // Respond with new user
-      res.json(user[0]);
-    })
-    .catch((err) => res.status(400).json("unable to register"));
+  // Hash the password
+  const hash = bcrypt.hashSync(password);
+  // Create a transaction
+  db.transaction((trx) => {
+    trx
+      // Add hashed password and email to login database
+      .insert({ hash, email })
+      .into("login")
+      .returning("email")
+      .then((login_email) => {
+        // Add new user to users database
+        trx("users")
+          .insert({ email: login_email[0].email, name, joined: new Date() })
+          .returning("*")
+          .then((user) => {
+            // Respond with new user
+            res.json(user[0]);
+          });
+      })
+      .then(trx.commit)
+      .catch(trx.rollback);
+  }).catch((err) => res.status(400).json("unable to register"));
 });
 
 // Profile
@@ -113,20 +106,19 @@ app.get("/profile/:user_id", (req, res) => {
         res.status(400).json("Unable to find user.");
       }
     })
-    .catch((err) => res.status(err).json("Error getting user."));
+    .catch((err) => res.status(400).json("Error getting user."));
 });
 
 // Image
 app.put("/image", (req, res) => {
   const { id } = req.body;
   // Find user by id and increment their entry count
-  database.users.forEach((user) => {
-    if (user.id == id) {
-      user.entries += 1;
-      res.json(user.entries);
-      return;
-    }
-  });
+  db("users")
+    .where("id", "=", id)
+    .increment("entries", 1)
+    .returning("entries")
+    .then((entries) => res.json(entries[0].entries))
+    .catch((err) => res.status(400).json("Unable to get entries"));
 });
 
 // bcrypt.compare("veggies", hash, function (err, res) {
