@@ -13,6 +13,15 @@ const express = require("express");
 const bcrypt = require("bcrypt-nodejs");
 const cors = require("cors");
 const { bindComplete } = require("pg-protocol/dist/messages");
+
+const { Pool } = require("pg");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
 const db = require("knex")({
   client: "pg",
   connection: {
@@ -45,6 +54,19 @@ app.get("/", (req, res) => {
   //   })
   //   .catch((err) => res.status(err).json("Error getting users."));
   res.send("its alive!!");
+});
+
+app.get("/db", async (req, res) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query("SELECT * FROM users");
+    const results = { results: result ? result.rows : null };
+    res.render("pages/db", results);
+    client.release();
+  } catch (err) {
+    console.error(err);
+    res.send("Error " + err);
+  }
 });
 
 // Signing in
