@@ -39,6 +39,16 @@ const database = {
 const express = require("express");
 const bcrypt = require("bcrypt-nodejs");
 const cors = require("cors");
+const db = require("knex")({
+  client: "pg",
+  connection: {
+    host: "localhost",
+    port: 5432,
+    user: "postgres",
+    password: "secret",
+    database: "smart-brain",
+  },
+});
 
 // Instantiate app
 const app = express();
@@ -78,32 +88,32 @@ app.post("/signin", (req, res) => {
 // Registering
 app.post("/register", (req, res) => {
   const { email, name, password } = req.body;
-  // Add id and entries to new user
-  const newUser = {
-    name,
-    email,
-    id: 125,
-    entries: 0,
-    joined: new Date(),
-  };
   // Add new user to database
-  database.users.push(newUser);
-  // Respond with new user
-  res.json(database.users[database.users.length - 1]);
+  db("users")
+    .insert({ email, name, joined: new Date() })
+    .returning("*")
+    .then((user) => {
+      // Respond with new user
+      res.json(user[0]);
+    })
+    .catch((err) => res.status(400).json("unable to register"));
 });
 
 // Profile
 app.get("/profile/:user_id", (req, res) => {
   const { user_id } = req.params;
   // Find user by id and respond with user
-  const user = database.users.filter((user) => {
-    return user.id == user_id;
-  });
-  if (user.length > 0) {
-    res.json(user);
-  } else {
-    res.status(404).json("User not found.");
-  }
+  db.select("*")
+    .from("users")
+    .where({ id: user_id })
+    .then((user) => {
+      if (user.length) {
+        res.json(user[0]);
+      } else {
+        res.status(400).json("Unable to find user.");
+      }
+    })
+    .catch((err) => res.status(err).json("Error getting user."));
 });
 
 // Image
