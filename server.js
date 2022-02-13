@@ -65,6 +65,9 @@ app.get("/profile/:user_id", (req, res) => {
 app.put("/image", (req, res) => {
   image.handle_image(req, res, db);
 });
+app.post("/imageurl", (req, res) => {
+  image.handle_api_call(req, res);
+});
 
 // bcrypt.compare("veggies", hash, function (err, res) {
 //   // res = false
