@@ -38,12 +38,13 @@ app.use(cors());
 
 // Root route
 app.get("/", (req, res) => {
-  db.select("*")
-    .from("users")
-    .then((users) => {
-      res.json(users);
-    })
-    .catch((err) => res.status(err).json("Error getting users."));
+  // db.select("*")
+  //   .from("users")
+  //   .then((users) => {
+  //     res.json(users);
+  //   })
+  //   .catch((err) => res.status(err).json("Error getting users."));
+  res.send("its alive!!");
 });
 
 // Signing in
@@ -74,6 +75,6 @@ app.post("/imageurl", (req, res) => {
 // });
 
 // Define server port
-app.listen(process.env.PORT, () => {
+app.listen(process.env.PORT || 3000, () => {
   console.log(`Server is running on port ${process.env.PORT}.`);
 });
