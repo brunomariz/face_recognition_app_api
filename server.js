@@ -8,7 +8,7 @@ Project outline - first ideas:
 /image -> PUT = user
 */
 
-// Import express
+// Imports
 const express = require("express");
 const bcrypt = require("bcrypt-nodejs");
 const cors = require("cors");
@@ -23,6 +23,11 @@ const db = require("knex")({
     database: "smart-brain",
   },
 });
+
+const register = require("./controllers/register");
+const signin = require("./controllers/signin");
+const profile = require("./controllers/profile");
+const image = require("./controllers/image");
 
 // Instantiate app
 const app = express();
@@ -43,82 +48,22 @@ app.get("/", (req, res) => {
 
 // Signing in
 app.post("/signin", (req, res) => {
-  db("users")
-    .select("email", "hash")
-    .from("login")
-    .where("email", "=", req.body.email)
-    .then((data) => {
-      const is_valid = bcrypt.compareSync(req.body.password, data[0].hash);
-      if (is_valid) {
-        return db
-          .select("*")
-          .from("users")
-          .where("email", "=", req.body.email)
-          .then((user) => {
-            res.json(user[0]);
-          })
-          .catch((err) => res.status(400).json("Error signing in."));
-      } else {
-        res.status(400).json("Wrong credentials.");
-      }
-    })
-    .catch((err) => res.status(400).json("Wrong credentials."));
+  signin.handle_signin(req, res, bcrypt, db);
 });
 
 // Registering
 app.post("/register", (req, res) => {
-  const { email, name, password } = req.body;
-  // Hash the password
-  const hash = bcrypt.hashSync(password);
-  // Create a transaction
-  db.transaction((trx) => {
-    trx
-      // Add hashed password and email to login database
-      .insert({ hash, email })
-      .into("login")
-      .returning("email")
-      .then((login_email) => {
-        // Add new user to users database
-        trx("users")
-          .insert({ email: login_email[0].email, name, joined: new Date() })
-          .returning("*")
-          .then((user) => {
-            // Respond with new user
-            res.json(user[0]);
-          });
-      })
-      .then(trx.commit)
-      .catch(trx.rollback);
-  }).catch((err) => res.status(400).json("unable to register"));
+  register.handle_register(req, res, bcrypt, db);
 });
 
 // Profile
 app.get("/profile/:user_id", (req, res) => {
-  const { user_id } = req.params;
-  // Find user by id and respond with user
-  db.select("*")
-    .from("users")
-    .where({ id: user_id })
-    .then((user) => {
-      if (user.length) {
-        res.json(user[0]);
-      } else {
-        res.status(400).json("Unable to find user.");
-      }
-    })
-    .catch((err) => res.status(400).json("Error getting user."));
+  profile.handle_profile(req, res, db);
 });
 
 // Image
 app.put("/image", (req, res) => {
-  const { id } = req.body;
-  // Find user by id and increment their entry count
-  db("users")
-    .where("id", "=", id)
-    .increment("entries", 1)
-    .returning("entries")
-    .then((entries) => res.json(entries[0].entries))
-    .catch((err) => res.status(400).json("Unable to get entries"));
+  image.handle_image(req, res, db);
 });
 
 // bcrypt.compare("veggies", hash, function (err, res) {
